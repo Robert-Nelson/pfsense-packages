@@ -12,14 +12,14 @@
 		<url>/pkg_edit.php?xml=gwled.xml&amp;id=0</url>
 	</menu>
 	<additional_files_needed>
-		<item>http://www.pfsense.org/packages/config/gwled/gwled.inc</item>
+		<item>https://packages.pfsense.org/packages/config/gwled/gwled.inc</item>
 		<prefix>/usr/local/pkg/</prefix>
 		<chmod>0644</chmod>
 	</additional_files_needed>
 	<additional_files_needed>
 		<prefix>/usr/local/bin/</prefix>
 		<chmod>0755</chmod>
-		<item>http://www.pfsense.com/packages/config/gwled/gwled.php</item>
+		<item>https://packages.pfsense.org/packages/config/gwled/gwled.php</item>
 	</additional_files_needed>
 	<service>
 		<name>gwled</name>
@@ -66,7 +66,7 @@
 		</field>
 	</fields>
 	<custom_php_validation_command>
-		validate_form_gwled($_POST, &amp;$input_errors);
+		validate_form_gwled($_POST, $input_errors);
 	</custom_php_validation_command>
 	<custom_php_resync_config_command>
 		sync_package_gwled();

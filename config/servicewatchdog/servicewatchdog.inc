@@ -3,6 +3,7 @@ require_once("config.inc");
 require_once("services.inc");
 require_once("service-utils.inc");
 require_once("util.inc");
+require_once("notices.inc");
 
 function servicewatchdog_service_matches($svc1, $svc2) {
 	/* If the arrays are equal, it must be the same service. */
@@ -48,14 +49,14 @@ function servicewatchdog_is_service_watched($svc) {
 	return false;
 }
 
-function servicewatchdog_cron_job() {
+function servicewatchdog_cron_job($force_remove) {
 	global $config;
 	if (!is_array($config['installedpackages']['servicewatchdog']['item'])) {
 		$config['installedpackages']['servicewatchdog']['item'] = array();
 	}
 	$a_pwservices = &$config['installedpackages']['servicewatchdog']['item'];
 
-	if (count($a_pwservices) > 0) {
+	if (($force_remove == false) && (count($a_pwservices) > 0)) {
 		// Add the cron job if it doesn't exist.
 		install_cron_job("/usr/local/pkg/servicewatchdog_cron.php", true, "*/1");
 	} else {
@@ -74,7 +75,10 @@ function servicewatchdog_check_services() {
 	foreach ($a_pwservices as $svc) {
 		if (!get_service_status($svc)) {
 			$descr = strlen($svc['description']) > 50 ? substr($svc['description'], 0, 50) . "..." : $svc['description'];
-			log_error("Service Watchdog detected service {$svc['name']} stopped. Restarting {$svc['name']} ({$descr})");
+			$error_message = "Service Watchdog detected service {$svc['name']} stopped. Restarting {$svc['name']} ({$descr})";
+			log_error($error_message);
+			if (isset($svc['notify']))
+				notify_via_smtp($error_message);
 			service_control_start($svc['name'], $svc);
 		}
 	}

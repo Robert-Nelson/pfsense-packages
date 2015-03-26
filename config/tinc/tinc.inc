@@ -1,5 +1,28 @@
 <?php
 
+if (!function_exists('clear_log_file')) {
+//include_once('guiconfig.inc'); // needed for clear_log_file() during package installation while booting
+//however guiconfig.inc includes authgui.inc which requires a valid php session_auth(), and exits when not found..
+//so include the function here..
+	function clear_log_file($logfile = "/var/log/system.log", $restart_syslogd = true) {
+		global $config, $g;
+		if ($restart_syslogd)
+			exec("/usr/bin/killall syslogd");
+		if(isset($config['system']['disablesyslogclog'])) {
+			unlink($logfile);
+			touch($logfile);
+		} else {
+			$log_size = isset($config['syslog']['logfilesize']) ? $config['syslog']['logfilesize'] : "511488";
+			if(isset($config['system']['usefifolog']))
+				exec("/usr/sbin/fifolog_create -s {$log_size} " . escapeshellarg($logfile));
+			else
+				exec("/usr/local/sbin/clog -i -s {$log_size} " . escapeshellarg($logfile));
+		}
+		if ($restart_syslogd)
+			system_syslogd_start();
+	}
+}
+
 function tinc_save() {
 	global $config;
 	conf_mount_rw();
@@ -31,17 +54,33 @@ function tinc_save() {
 		file_put_contents('/usr/local/etc/tinc/hosts/'.$host['name'],$_output);
 		if($host['host_up'])
 		{
-			file_put_contents('/usr/local/etc/tinc/hosts/'.$host['name'].'-up',base64_decode($host['host_up'])."\n");
+			file_put_contents('/usr/local/etc/tinc/hosts/'.$host['name'].'-up',str_replace("\r", "", base64_decode($host['host_up']))."\n");
 			chmod('/usr/local/etc/tinc/hosts/'.$host['name'].'-up', 0744);
 		}
 		if($host['host_down'])
 		{
-			file_put_contents('/usr/local/etc/tinc/hosts/'.$host['name'].'-down',base64_decode($host['host_down'])."\n");
+			file_put_contents('/usr/local/etc/tinc/hosts/'.$host['name'].'-down',str_replace("\r", "", base64_decode($host['host_down']))."\n");
 			chmod('/usr/local/etc/tinc/hosts/'.$host['name'].'-down', 0744);
 		}
 	}
 	fwrite($fout, base64_decode($tincconf['extra'])."\n");
 	fclose($fout);
+
+	// Check if we need to generate a new RSA key pair.
+	if ($tincconf['gen_rsa'])
+	{
+		safe_mkdir("/usr/local/etc/tinc/tmp");
+		exec("/usr/local/sbin/tincd -c /usr/local/etc/tinc/tmp -K");
+		$tincconf['cert_pub'] = base64_encode(file_get_contents('/usr/local/etc/tinc/tmp/rsa_key.pub'));
+		$tincconf['cert_key'] = base64_encode(file_get_contents('/usr/local/etc/tinc/tmp/rsa_key.priv'));
+		$tincconf['gen_rsa'] = false;
+		$config['installedpackages']['tinc']['config'][0]['cert_pub'] = $tincconf['cert_pub'];
+		$config['installedpackages']['tinc']['config'][0]['cert_key'] = $tincconf['cert_key'];
+		$config['installedpackages']['tinc']['config'][0]['gen_rsa'] = $tincconf['gen_rsa'];
+		rmdir_recursive("/usr/local/etc/tinc/tmp");
+		write_config();
+	}
+
 	$_output = "Subnet=" . $tincconf['localsubnet'] . "\n";
 	$_output .= base64_decode($tincconf['host_extra']) . "\n";
 	$_output .= base64_decode($tincconf['cert_pub']) . "\n";
@@ -61,31 +100,32 @@ function tinc_save() {
 	chmod("/usr/local/etc/tinc/tinc-up", 0744);
 	if($tincconf['tinc_down'])
 	{
-		file_put_contents('/usr/local/etc/tinc/tinc-down',base64_decode($tincconf['tinc_down']) . "\n");
+		file_put_contents('/usr/local/etc/tinc/tinc-down',str_replace("\r", "", base64_decode($tincconf['tinc_down'])) . "\n");
 		chmod("/usr/local/etc/tinc/tinc-down", 0744);
 	}
 	if($tincconf['host_up'])
 	{
-		file_put_contents('/usr/local/etc/tinc/host-up',base64_decode($tincconf['host_up']) . "\n");
+		file_put_contents('/usr/local/etc/tinc/host-up',str_replace("\r", "", base64_decode($tincconf['host_up'])) . "\n");
 		chmod("/usr/local/etc/tinc/host-up", 0744);
 	}
 	if($tincconf['host_down'])
 	{
-		file_put_contents('/usr/local/etc/tinc/host-down',base64_decode($tincconf['host_down']) . "\n");
+		file_put_contents('/usr/local/etc/tinc/host-down',str_replace("\r", "", base64_decode($tincconf['host_down'])) . "\n");
 		chmod("/usr/local/etc/tinc/host-down", 0744);
 	}
 	if($tincconf['subnet_up'])
 	{
-		file_put_contents('/usr/local/etc/tinc/subnet-up',base64_decode($tincconf['subnet_up']) . "\n");
+		file_put_contents('/usr/local/etc/tinc/subnet-up',str_replace("\r", "", base64_decode($tincconf['subnet_up'])) . "\n");
 		chmod("/usr/local/etc/tinc/subnet-up", 0744);
 	}
 	if($tincconf['subnet_down'])
 	{
-		file_put_contents('/usr/local/etc/tinc/subnet-down',base64_decode($tincconf['subnet_down']) . "\n");
+		file_put_contents('/usr/local/etc/tinc/subnet-down',str_replace("\r", "", base64_decode($tincconf['subnet_down'])) . "\n");
 		chmod("/usr/local/etc/tinc/subnet-down", 0744);
 	}
 	system("/usr/local/etc/rc.d/tinc.sh restart 2>/dev/null");
 	rmdir_recursive("/usr/local/etc/tinc.old");
+
 	conf_mount_ro();
 	config_unlock();
 }
@@ -153,7 +193,7 @@ function tinc_deinstall() {
                 {
                         $realif = get_real_interface($ifs);
                         if ($realif)
-                                mwexec("/sbin/ifconfig  {$realif} -group " . $a_ifgroups[$_GET['id']]['ifname']);
+                                mwexec("/sbin/ifconfig  {$realif} -group " . escapeshellarg($a_ifgroups[$_GET['id']]['ifname']));
                 }
                 unset($a_ifgroups[$myid]);
         	mwexec("/bin/rm -f /tmp/config.cache");

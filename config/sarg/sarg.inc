@@ -272,6 +272,8 @@ function sync_package_sarg() {
 	$bytes_in_sites_users_report=(preg_match('/bytes_in_sites_users_report/',$sarg['report_options'])?"yes":"no");
 	$date_time_by=(preg_match('/date_time_by_bytes/',$sarg['report_options'])?"bytes":"");
 	$date_time_by.=(preg_match('/date_time_by_elap/',$sarg['report_options'])?" elap":"");
+	if(empty($date_time_by))
+		$date_time_by="bytes";
 	$date_format=(preg_match("/\w/",$sarg['report_date_format'])?$sarg['report_date_format']:"u");
 	$report_type=preg_replace('/,/',' ',$sarg['report_type']);
 	$report_charset=(empty($sarg['report_charset'])?"UTF-8":$sarg['report_charset']);
@@ -352,7 +354,7 @@ function sync_package_sarg() {
 			else
 				$new_cron['item'][]=$cron;
 			}
-		$cron_cmd="/usr/local/bin/php /usr/local/www/sarg.php";
+		$cron_cmd="/usr/local/bin/php --no-header /usr/local/www/sarg.php";
 		$sarg_schedule_id=0;
 		if (is_array($config['installedpackages']['sargschedule']['config']))
 			foreach ($config['installedpackages']['sargschedule']['config'] as $sarg_schedule){

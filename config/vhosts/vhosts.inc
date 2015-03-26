@@ -331,7 +331,7 @@ function vhosts_sync_package_php()
 					if (strlen($rowhelper['certificate']) > 0 && strlen($rowhelper['privatekey']) > 0) {
 						$pem_file = "/var/etc/cert-vhosts-".$ipaddress."-".$port.".pem";
 						$fout = fopen($pem_file,"w");
-						fwrite($fout, $certificate.$privatekey);
+						fwrite($fout, $certificate.PHP_EOL.$privatekey);
 						fclose($fout);
 						$tmp .= "		ssl.pemfile = \"".$pem_file."\"\n";
 						$tmp .= "		ssl.engine = \"enable\"\n";
@@ -491,7 +491,6 @@ function vhosts_sync_package_php()
 					$tmp .= "\n";
 					$tmp .= "## modules to load\n";
 					$tmp .= "server.modules =   (\n";
-					$tmp .= "				  \"mod_accesslog\",\n";
 					$tmp .= "				  \"mod_access\", \"mod_accesslog\",\n";
 					$tmp .= "                  \"mod_fastcgi\", \"mod_cgi\",\"mod_rewrite\"\n";
 					$tmp .= "				)\n";
@@ -615,7 +614,7 @@ function vhosts_sync_package_php()
 						$pem_file = "/var/etc/cert-vhosts-".$ipaddress."-".$port.".pem";
 						$fout = fopen($pem_file,"w");
 						//echo $certificate; //exit;
-						fwrite($fout, $certificate.$privatekey);
+						fwrite($fout, $certificate.PHP_EOL.$privatekey);
 						fclose($fout);
 						$tmp .= "## ssl configuration\n";
 						$tmp .= "ssl.pemfile = \"".$pem_file."\"\n";
@@ -660,7 +659,7 @@ function vhosts_sync_package_php()
 					$tmp .= "				\"PHP_FCGI_MAX_REQUESTS\" => \"500\",\n";
 					$tmp .= "				\"PHP_FCGI_CHILDREN\" => \"1\"\n";
 					$tmp .= "			),\n";
-					$tmp .= "			\"bin-path\" => \"/usr/local/php5/php-cgi\"\n";
+					$tmp .= "			\"bin-path\" => \"/usr/local/bin/php\"\n";
 					$tmp .= "		)\n";
 					$tmp .= "	)\n";
 					$tmp .= ")\n";
@@ -682,11 +681,11 @@ function vhosts_sync_package_php()
 					);
 
 					//add or update a service
-						$a_service   = &$config['installedpackages']['service'];
 						$ent['name'] = "vhosts-ssl-$x";
 						$ent['rcfile'] = "vhosts-".$ipaddress."-".$port."-ssl.sh";
 						$ent['executable'] = "vhosts-".$ipaddress."-".$port."-ssl";
 						$ent['description'] = "vHosts SSL, Host: $host, IP Address: ".$ipaddress.", port: ".$port." desc: ".$description;
+						$ent['custom_php_service_status_command'] = "\$vhost_output=''; exec('/bin/pgrep -anf '.".escapeshellarg($ent['executable']).", \$vhost_output, \$retval); \$rc=(intval(\$retval) == 0);";
 						$a_service   = $config['installedpackages']['service'];
 						$service_id = get_service_id ($a_service, 'name', "vhosts-ssl-$x");
 						if (is_int($service_id)) {
@@ -736,31 +735,31 @@ function vhosts_install_command() {
 	if(stristr(php_uname('r'), '7.2') == TRUE) {
 		if (!file_exists('/usr/local/php5')) {
 			chdir('/usr/local/');
-			exec ("fetch http://files.pfsense.org/packages/7/vhosts/php5.tar.gz");
+			exec ("fetch https://files.pfsense.org/packages/7/vhosts/php5.tar.gz");
 			exec("tar zxvf /usr/local/php5.tar.gz -C /usr/local/");
 			exec("rm /usr/local/php5.tar.gz");
 		}
 		if (!file_exists('/usr/local/lib/libxml2.so.5')) {
 			chdir('/usr/local/lib/');
-			exec ("fetch http://files.pfsense.org/packages/7/vhosts/usr.local.lib/libxml2.so.5");
+			exec ("fetch https://files.pfsense.org/packages/7/vhosts/usr.local.lib/libxml2.so.5");
 		}
 		if (!file_exists('/usr/local/lib/libxml2.so')) {
 			chdir('/usr/local/lib/');
-			exec ("fetch http://files.pfsense.org/packages/7/vhosts/usr.local.lib/libxml2.so");
+			exec ("fetch https://files.pfsense.org/packages/7/vhosts/usr.local.lib/libxml2.so");
 		}
 		if (!file_exists('/usr/local/lib/libxml2.la')) {
 			chdir('/usr/local/lib/');
-			exec ("fetch http://files.pfsense.org/packages/7/vhosts/usr.local.lib/libxml2.la");
+			exec ("fetch https://files.pfsense.org/packages/7/vhosts/usr.local.lib/libxml2.la");
 		}
 		if (!file_exists('/usr/local/lib/libxml2.a')) {
 			chdir('/usr/local/lib/');
-			exec ("fetch http://files.pfsense.org/packages/7/vhosts/usr.local.lib/lib/libxml2.a");
+			exec ("fetch https://files.pfsense.org/packages/7/vhosts/usr.local.lib/lib/libxml2.a");
 		}
 	}
 	if(stristr(php_uname('r'), '8.1') == TRUE) {
 		if (!file_exists('/usr/local/php5')) {
 			chdir('/usr/local/');
-			exec ("fetch http://files.pfsense.org/packages/8/vhosts/php5.tar.gz");
+			exec ("fetch https://files.pfsense.org/packages/8/vhosts/php5.tar.gz");
 			exec("tar zxvf /usr/local/php5.tar.gz -C /usr/local/");
 			exec("rm /usr/local/php5.tar.gz");
 		}
@@ -774,7 +773,7 @@ function vhosts_install_command() {
 	unlink_if_exists("/tmp/vhosts_php_edit.tmp");
 
 	chdir('/tmp/');
-	exec ("fetch http://www.pfsense.com/packages/config/vhosts/system_advanced_create_certs.tmp");
+	exec ("fetch https://packages.pfsense.org/packages/config/vhosts/system_advanced_create_certs.tmp");
 	exec("cp /tmp/system_advanced_create_certs.tmp /usr/local/www/packages/vhosts/system_advanced_create_certs.php");
 	unlink_if_exists("/tmp/system_advanced_create_certs.tmp");
 

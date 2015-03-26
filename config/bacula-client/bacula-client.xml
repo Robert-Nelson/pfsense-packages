@@ -53,17 +53,17 @@
 	<additional_files_needed>
 		<prefix>/usr/local/pkg/</prefix>
 		<chmod>0755</chmod>
-		<item>http://www.pfsense.com/packages/config/bacula-client/bacula-client.inc</item>
+		<item>https://packages.pfsense.org/packages/config/bacula-client/bacula-client.inc</item>
 	</additional_files_needed>
 	<additional_files_needed>
 		<prefix>/usr/local/pkg/</prefix>
 		<chmod>0755</chmod>
-		<item>http://www.pfsense.com/packages/config/bacula-client/bacula-client_fd.xml</item>
+		<item>https://packages.pfsense.org/packages/config/bacula-client/bacula-client_fd.xml</item>
 	</additional_files_needed>
 	<additional_files_needed>
 		<prefix>/usr/local/www/</prefix>
 		<chmod>0755</chmod>
-		<item>http://www.pfsense.com/packages/config/bacula-client/bacula-client_view_config.php</item>
+		<item>https://packages.pfsense.org/packages/config/bacula-client/bacula-client_view_config.php</item>
 	</additional_files_needed>
 	<menu>
 		<name>Bacula-client</name>
@@ -132,7 +132,7 @@
 			<fieldname>password</fieldname>
 			<type>password</type>
 			<size>30</size>
-			<description><![CDATA[Enter password for Diector use to Access.]]></description>
+			<description><![CDATA[Enter password for Director use to Access.]]></description>
 		</field>
 		<field>
 			<fielddescr>Director type</fielddescr>

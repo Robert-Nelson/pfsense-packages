@@ -34,11 +34,21 @@ switch ($pfs_version) {
   case "1.2":
   case "2.0":
     define('PKG_BANDWIDTHD_BASE', '/usr/local/bandwidthd');
+    define('PKG_BANDWIDTHD_RUNTIME_LIBRARY_ENV', '');
+    break;
+  case "2.1":
+    define('PKG_BANDWIDTHD_BASE', '/usr/pbi/bandwidthd-' . php_uname("m") . '/bandwidthd');
+    define('PKG_BANDWIDTHD_RUNTIME_LIBRARY_ENV', '');
     break;
   default:
-    define('PKG_BANDWIDTHD_BASE', '/usr/pbi/bandwidthd-' . php_uname("m") . '/bandwidthd');
+    define('PKG_BANDWIDTHD_BASE', '/usr/pbi/bandwidthd-' . php_uname("m") . '/local/bandwidthd');
+    define('PKG_BANDWIDTHD_RUNTIME_LIBRARY_ENV', 'LD_LIBRARY_PATH=/usr/pbi/bandwidthd-' . php_uname("m") . '/local/lib');
  }
 // End: Check pfSense version
+
+function is_blank($value) {
+    return empty($value) && !is_numeric($value);
+}
 
 function bandwidthd_install_deinstall() {
 	conf_mount_rw();
@@ -59,6 +69,7 @@ function bandwidthd_install_config() {
 	/* the conf file must be ./etc/bandwidthd.conf relative to the current dir */
 	$bandwidthd_base_dir = PKG_BANDWIDTHD_BASE;
 	$bandwidthd_config_dir = PKG_BANDWIDTHD_BASE . "/etc";
+	$bandwidthd_runtime_library_env = PKG_BANDWIDTHD_RUNTIME_LIBRARY_ENV;
 
 	conf_mount_rw();
 	config_lock();
@@ -66,8 +77,11 @@ function bandwidthd_install_config() {
 	/* user defined values */
 	$bandwidthd_config = $config['installedpackages']['bandwidthd']['config'][0];
 	$meta_refresh = $bandwidthd_config['meta_refresh'];
-	if ($meta_refresh)
+	if (is_numeric($meta_refresh))
 		$meta_refresh = "meta_refresh $meta_refresh\n";
+	else
+		$meta_refresh = "";
+
 	$graph = $bandwidthd_config['drawgraphs'];
 	if ($graph)
 		$graph = "graph true\n";
@@ -75,11 +89,17 @@ function bandwidthd_install_config() {
 		$graph = "graph false\n";
 
 	$filter_text = $bandwidthd_config['filter'];
-	if ($filter_text)
+	if (!is_blank($filter_text))
 		$filter_text = "filter $filter_text\n";
+	else
+		$filter_text = "";
+
 	$recover_cdf = $bandwidthd_config['recovercdf'];
 	if ($recover_cdf)
 		$recover_cdf = "recover_cdf true\n";
+	else
+		$recover_cdf = "";
+
 	$output_cdf = $bandwidthd_config['outputcdf'];
 	if ($output_cdf)
 		$output_cdf_string = "output_cdf true\n";
@@ -93,15 +113,15 @@ function bandwidthd_install_config() {
 	$postgresql_password = $bandwidthd_config['postgresqlpassword'];
 	$postgresql_string = "";
 	if ($output_postgresql) {
-		if ($postgresql_host && $postgresql_username && $postgresql_database && $postgresql_password)
+		if (!is_blank($postgresql_host) && !is_blank($postgresql_username) && !is_blank($postgresql_database) && !is_blank($postgresql_password))
 			$postgresql_string = "pgsql_connect_string \"user = $postgresql_username dbname = $postgresql_database password = $postgresql_password host = $postgresql_host\"\n";
 		else
-			log_error("You have to specify the postgreSQL Host, Database, Username and Password. Exiting.");
+			log_error("bandwidthd: You have to specify the postgreSQL Host, Database, Username and Password. postgreSQL details have been ignored.");
 	}
 
 	$sensor_id = $bandwidthd_config['sensorid'];
 
-	if ($sensor_id)
+	if (!is_blank($sensor_id))
 		$sensor_id_string = "sensor_id \"$sensor_id\"";
 	else
 		$sensor_id_string = "";
@@ -113,13 +133,20 @@ function bandwidthd_install_config() {
 		$promiscuous = "promiscuous false\n";
 
 	$graph_cutoff = $bandwidthd_config['graphcutoff'];
-	if ($graph_cutoff)
+	if (!is_blank($graph_cutoff))
 		$graph_cutoff = "graph_cutoff $graph_cutoff\n";
-	$skip_intervals = $bandwidthd_config['skipintervals'];
-	if ($skip_intervals)
-		$skip_intervals = "skip_intervals $skip_intervals\n";
+	else
+		$graph_cutoff = "";
 
-	if ($bandwidthd_config['active_interface']){
+	$skip_intervals = $bandwidthd_config['skipintervals'];
+	if ($skip_intervals) {
+		$skip_intervals = "skip_intervals $skip_intervals\n";
+	} else {
+		/* Includes the case where 0 is explicitly specified, which is the default anyway. */
+		$skip_intervals = "";
+	}
+
+	if (!is_blank($bandwidthd_config['active_interface'])){
 		$ifdescrs = array($bandwidthd_config['active_interface']);
 	} else {
 		log_error("You should specify an interface for bandwidthd to listen on. Exiting.");
@@ -316,12 +343,14 @@ if [ ! -f "{$bandwidthd_htdocs_dir}/logo.gif" ] ; then
 	/bin/cp {$bandwidthd_base_dir}/htdocs/logo.gif {$bandwidthd_htdocs_dir}
 fi
 cd {$bandwidthd_nano_dir}
-{$bandwidthd_nano_dir}/bandwidthd
+{$bandwidthd_runtime_library_env} {$bandwidthd_nano_dir}/bandwidthd
 cd -
 EOD;
 		} else {
 			$rc['start'] = <<<EOD
-/usr/local/bandwidthd/bandwidthd
+cd {$bandwidthd_base_dir}
+{$bandwidthd_runtime_library_env} {$bandwidthd_base_dir}/bandwidthd
+cd -
 EOD;
 		}
 	} else {

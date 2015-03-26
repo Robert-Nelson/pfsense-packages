@@ -1,7 +1,7 @@
 <?
 /* $Id$ */
 /*
-	part of pfSense (http://www.pfsense.org/)
+	part of pfSense (https://www.pfsense.org/)
 
 	Copyright (C) 2006 Bill Marquette - bill.marquette@gmail.com.
 	All rights reserved.
@@ -28,7 +28,29 @@
 	POSSIBILITY OF SUCH DAMAGE.
 */
 
-function nmap_custom_php_validation_command($post, $input_errors) {
+function nmap_install() {
+	$destination_file = "/usr/local/share/nmap/nmap-mac-prefixes";
+	$pfs_version = substr(trim(file_get_contents("/etc/version")),0,3);
+	switch ($pfs_version) {
+		case "1.2":
+		case "2.0":
+			return null;
+		case "2.1":
+			$source_file = "/usr/pbi/nmap-" . php_uname("m") . "/share/nmap/nmap-mac-prefixes";
+			break;
+		default:
+			$source_file = "/usr/pbi/nmap-" . php_uname("m") . "/local/share/nmap/nmap-mac-prefixes";
+	}
+	/* Only copy the file if it doesn't exist */
+	if (file_exists($source_file) && !file_exists($destination_file)) {
+		if (!is_dir(dirname($destination_file))) {
+			@mkdir(dirname($destination_file), 0644, true);
+		}
+		@symlink($source_file, $destination_file);
+	}
+}
+
+function nmap_custom_php_validation_command($post, & $input_errors) {
 	global $_POST, $savemsg, $config;
 	if (empty($_POST['hostname'])) {
 		$input_errors[] = gettext("You must enter an IP address to scan.");

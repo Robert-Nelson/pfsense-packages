@@ -1,6 +1,4 @@
 <?php
-
-/* $Id$ */
 /*
 	openbgpd.inc
 	Copyright (C) 2007 Scott Ullrich (sullrich@gmail.com)
@@ -92,9 +90,11 @@ function openbgpd_install_conf() {
 			$conffile .= "holdtime {$openbgpd_conf['holdtime']}\n";
 
 		// Specify listen ip
-		if($openbgpd_conf['listenip'])
+		if(!empty($openbgpd_conf['listenip']))
 			$conffile .= "listen on {$openbgpd_conf['listenip']}\n";
-
+		else
+			$conffile .= "listen on 0.0.0.0\n";
+			
 		// Specify router id
 		if($openbgpd_conf['routerid'])
 			$conffile .= "router-id {$openbgpd_conf['routerid']}\n";
@@ -129,8 +129,14 @@ function openbgpd_install_conf() {
 									$conffile .= "\t\t{$row['parameters']} {$row['parmvalue']} \n";
 								}
 							}
-							if ($setlocaladdr == true)
-								$conffile .= "\t\tlocal-address {$openbgpd_conf['listenip']}\n";
+							if ($setlocaladdr == true) {
+								if (!empty($openbgpd_conf['listenip'])) {
+									$conffile .= "\t\tlocal-address {$openbgpd_conf['listenip']}\n";
+								} else {
+									$conffile .= "\t\tlocal-address 0.0.0.0\n";
+								}
+							}
+								
 							$conffile .= "}\n";
 						}
 					}
@@ -159,8 +165,11 @@ function openbgpd_install_conf() {
 							$conffile .= "\t{$row['parameters']} {$row['parmvalue']} \n";
 						}
 					}
-					if ($setlocaladdr == true)
+					if ($setlocaladdr == true && !empty($openbgpd_conf['listenip']))
 						$conffile .= "\tlocal-address {$openbgpd_conf['listenip']}\n";
+					else
+						$conffile .= "\tlocal-address 0.0.0.0\n";
+
 					$conffile .= "}\n";
 				}
 			}
@@ -180,6 +189,7 @@ function openbgpd_install_conf() {
 	// Write out the configuration file
 	@file_put_contents("{$bgpd_config_base}/bgpd.conf", $conffile);
 	@chmod("{$bgpd_config_base}/bgpd.conf", 0600);
+	unset($conffile);
 
 	// Create rc.d file
 	$rc_file_stop = <<<EOF
@@ -211,7 +221,9 @@ EOF;
 			"stop" =>  $rc_file_stop
 		)
 	);
+	unset($rc_file_start, $rc_file_stop);
 
+	$_gb = exec("/sbin/sysctl net.inet.ip.ipsec_in_use=1");
 	// bgpd process running?  if so reload, else start.
 	if(is_openbgpd_running() == true) {
 		exec("{$pkg_bin}/bgpctl reload");

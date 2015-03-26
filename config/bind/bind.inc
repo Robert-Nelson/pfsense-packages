@@ -43,11 +43,11 @@ $pf_version=substr(trim(file_get_contents("/etc/version")),0,3);
 if ($pf_version > 2.0)
 	define('BIND_LOCALBASE', '/usr/pbi/bind-' . php_uname("m"));
 else
-  define('BIND_LOCALBASE','/usr/local');
+	define('BIND_LOCALBASE','/usr/local');
 
 define('CHROOT_LOCALBASE','/cf/named');
 
-function bind_zone_validate($post, $input_errors){
+function bind_zone_validate($post, &$input_errors){
 	if (key_exists("mail",$_POST))
 		$_POST['mail']=preg_replace("/@/",".",$post['mail']);
 		
@@ -95,8 +95,7 @@ function bind_zone_validate($post, $input_errors){
 		}
 }
 
- function bind_sync(){
-
+function bind_sync(){
 	global $config;
 	conf_mount_rw();
 	//create rndc
@@ -105,10 +104,10 @@ function bind_zone_validate($post, $input_errors){
 		exec("$rndc_confgen ",$rndc_conf);
 		foreach($rndc_conf as $line)
 			$confgen_file.="$line\n";
-		file_put_contents(BIND_LOCALBASE."/etc/rndc-confgen.pfsese",$confgen_file);
+		file_put_contents(BIND_LOCALBASE."/etc/rndc-confgen.pfsense",$confgen_file);
 		}
-	if (file_exists(BIND_LOCALBASE."/etc/rndc-confgen.pfsese")){
-		$rndc_conf=file(BIND_LOCALBASE."/etc/rndc-confgen.pfsese");
+	if (file_exists(BIND_LOCALBASE."/etc/rndc-confgen.pfsense")){
+		$rndc_conf=file(BIND_LOCALBASE."/etc/rndc-confgen.pfsense");
 		$confgen="rndc.conf";
 		$rndc_bindconf="";
 		foreach ($rndc_conf as $line){
@@ -164,8 +163,8 @@ EOD;
 	}
 	//check ips to listen on
 	if (preg_match("/All/",$bind['listenon'])){
-		$bind_listenonv6="Any;";
-		$bind_listenon="Any;";
+		$bind_listenonv6="any;";
+		$bind_listenon="any;";
 		}
 	else{
 		$bind_listenonv6="";
@@ -198,10 +197,10 @@ EOD;
 	if ($bind_notify == on)
 		$bind_conf .="\t\tnotify yes;\n"; 
 	if ($hide_version == on)
-		$bind_conf .="\t\tversion \"N/A\";\n"; 
+		$bind_conf .="\t\tversion none;\n";
 
-	$bind_conf .="\t\t$custom_options\n"; 
-	$bind_conf .= "\t};\n\n";
+	$bind_conf .= preg_replace("/^/m","\t\t",$custom_options); 
+	$bind_conf .= "\n\t};\n\n";
 	
 	if ($bind_logging == on){
 		//check if bind is included on syslog
@@ -209,8 +208,9 @@ EOD;
 		$restart_syslog=0;
 		foreach ($syslog_files as $syslog_file){
 			$syslog_file_data=file_get_contents($syslog_file);
-			if (!preg_match("/dnsmasq,named,filterdns/",$syslog_file_data)){
+			if ( !preg_match("/dnsmasq,named,filterdns/",$syslog_file_data) || !preg_match("/'dnsmasq','named','filterdns'/",$syslog_file_data) ) {
 				$syslog_file_data=preg_replace("/dnsmasq,filterdns/","dnsmasq,named,filterdns",$syslog_file_data);
+				$syslog_file_data=preg_replace("/'dnsmasq','filterdns'/","'dnsmasq','named','filterdns'",$syslog_file_data);
 				file_put_contents($syslog_file,$syslog_file_data);
 				$restart_syslog++;
 				}
@@ -238,18 +238,28 @@ EOD;
 		$bind_conf .="\t\t};\n\n";				
 				}
 		 }
+	else {
+		$bind_conf .="\t\tlogging { category default { null; }; };\n\n";				
+	}
 
 	#Config Zone domain
 	if(!is_array($config["installedpackages"]["bindacls"]) || !is_array($config["installedpackages"]["bindacls"]["config"])){
-		$config["installedpackages"]["bindacls"]["config"][] =array("name"=>"any","description"=>"Default Access list","row" => array("value"=> "","description"=>""));
-		write_config("Create Default bind acl 'Any'");
+		$config["installedpackages"]["bindacls"]["config"][] =
+			array("name"=>"none","description"=>"BIND Built-in ACL","row"=>array("value"=>"","description"=>""));
+		$config["installedpackages"]["bindacls"]["config"][] =
+			array("name"=>"any","description"=>"BIND Built-in ACL","row"=>array("value"=>"","description"=>""));
+		$config["installedpackages"]["bindacls"]["config"][] =
+			array("name"=>"localhost","description"=>"BIND Built-in ACL","row"=>array("value"=>"","description"=>""));
+		$config["installedpackages"]["bindacls"]["config"][] =
+			array("name"=>"localnets","description"=>"BIND Built-in ACL","row"=>array("value"=>"","description"=>""));
+		write_config("Create BIND Built-in ACLs");
 		}
 	$bindacls = $config["installedpackages"]["bindacls"]["config"];
 	for ($i=0; $i<sizeof($bindacls); $i++)
 	{
 		$aclname = $bindacls[$i]['name'];
 		$aclhost = $bindacls[$i]['row'];
-		if($aclname != "any"){
+		if($aclname != "none" && $aclname != "any" && $aclname != "localhost" && $aclname != "localnets"){
 			$bind_conf .= "acl \"$aclname\" {\n";	
 			for ($u=0; $u<sizeof($aclhost); $u++)
 			{
@@ -337,7 +347,7 @@ EOD;
         			switch ($zonetype){
         				case "slave":
         				$bind_conf .= "\t\tmasters { $zoneipslave; };\n";
-        				$bind_conf .= "\t\tallow-transfer {none;};\n";
+        				$bind_conf .= "\t\tallow-transfer { $zoneallowtransfer;};\n";
         				$bind_conf .= "\t\tnotify no;\n";
         				break;
         				case "forward":
@@ -429,12 +439,52 @@ EOD;
 							$hostname = (preg_match("/(MX|NS)/",$zone['row'][$y]['hosttype'])?"@":$zone['row'][$y]['hostname']);
 							$hosttype = $zone['row'][$y]['hosttype'];
 							$hostdst = $zone['row'][$y]['hostdst'];
-							if (preg_match("/[a-zA-Z]/",$hostdst) && !preg_match("/(TXT|SPF)/",$hosttype))
+							if (preg_match("/[a-zA-Z]/",$hostdst) && !preg_match("/(TXT|SPF|AAAA)/",$hosttype))
 								$hostdst .= ".";
 							$hostvalue = $zone['row'][$y]['hostvalue'];
 							
 							$zone_conf .= "$hostname \t IN $hosttype $hostvalue \t$hostdst\n";
 						}
+
+						# Register DHCP static mappings
+						if (($zone[regdhcpstatic] == 'on') && is_array($config['dhcpd'])) {
+							$zoneparts = array_reverse(explode('.',$zonename));
+							foreach ($config['dhcpd'] as $dhcpif => $dhcpifconf) {
+								if (!isset($dhcpifconf['enable']) || !is_array($dhcpifconf['staticmap']))  {
+									continue;
+								}
+								foreach ($dhcpifconf['staticmap'] as $host) {
+									if (is_domain($host['domain'])) {
+										$domain = $host['domain'];
+									} elseif (is_domain($dhcpifconf['domain'])) {
+										$domain = $dhcpifconf['domain'];
+									} elseif (is_domain($config['system']['domain'])) {
+										$domain = $config['system']['domain'];
+									} else {
+										continue;
+									}
+									if (!is_hostname($host['hostname']) || !is_ipaddr($host['ipaddr']))  {
+										continue;
+									}
+									if ($zonereverso == "on") {
+										$parts = explode('.',$host['ipaddr']);
+										$intersect = array_intersect_assoc($parts,$zoneparts);
+										if (count($zoneparts) == count($intersect)) {
+											$diff = array_diff_assoc($parts,$zoneparts);
+											$shortaddr = implode('.',array_reverse($diff));
+											$zone_conf .= "{$shortaddr}\tIN PTR\t{$host['hostname']}.{$domain}.\n";
+										}
+									} else {
+										$parts = array_reverse(explode('.',$domain));
+										$diff = array_diff_assoc($parts,$zoneparts);
+										if (count($diff) == 0) {
+											$zone_conf .= "{$host['hostname']}\tIN A\t{$host['ipaddr']}\n";
+										}
+									}
+								}
+							}
+						}
+
 						if ($zone['customzonerecords']!=""){
 							$zone_conf .= "\n\n;\n;custom zone records\n;\n".base64_decode($zone['customzonerecords'])."\n";
 						}
@@ -609,6 +659,7 @@ function bind_print_javascript_type_zone(){
 					document.iform.forwarders.disabled = 1;
 					document.iform.dnssec.disabled = 0;
 					document.iform.backupkeys.disabled = 0;
+					document.iform.regdhcpstatic.disabled = 0;
 					document.iform.ipns.disabled = 0;
 					document.iform.mail.disabled = 0;
 					document.iform.serial.disabled = 0;
@@ -625,6 +676,7 @@ function bind_print_javascript_type_zone(){
 					document.iform.forwarders.disabled = 1;
 					document.iform.dnssec.disabled = 0;
 					document.iform.backupkeys.disabled = 0;
+					document.iform.regdhcpstatic.disabled = 0;
 					document.iform.ipns.disabled = 1;
 					document.iform.mail.disabled = 1;
 					document.iform.serial.disabled = 1;
@@ -641,6 +693,7 @@ function bind_print_javascript_type_zone(){
 					document.iform.forwarders.disabled = 0;
 					document.iform.dnssec.disabled = 1;
 					document.iform.backupkeys.disabled = 1;
+					document.iform.regdhcpstatic.disabled = 1;
 					document.iform.ipns.disabled = 1;
 					document.iform.mail.disabled = 1;
 					document.iform.serial.disabled = 1;
@@ -657,6 +710,7 @@ function bind_print_javascript_type_zone(){
 					document.iform.forwarders.disabled = 1;
 					document.iform.dnssec.disabled = 1;
 					document.iform.backupkeys.disabled = 1;
+					document.iform.regdhcpstatic.disabled = 1;
 					document.iform.ipns.disabled = 1;
 					document.iform.mail.disabled = 0;
 					document.iform.serial.disabled = 0;
@@ -822,13 +876,13 @@ function bind_do_xmlrpc_sync($sync_to_ip, $username, $password, $synctimeout,$ma
 	/* send our XMLRPC message and timeout after defined sync timeout value*/
 	$resp = $cli->send($msg, $synctimeout);
 	if(!$resp) {
-		$error = "A communications error occurred while attempting bind XMLRPC sync with {$url}:{$port}.";
+		$error = "A communications error occurred while attempting BIND XMLRPC sync with {$url}:{$port}.";
 		log_error($error);
 		file_notice("sync_settings", $error, "bind Settings Sync", "");
 	} elseif($resp->faultCode()) {
 		$cli->setDebug(1);
 		$resp = $cli->send($msg, $synctimeout);
-		$error = "An error code was received while attempting bind XMLRPC sync with {$url}:{$port} - Code " . $resp->faultCode() . ": " . $resp->faultString();
+		$error = "An error code was received while attempting BIND XMLRPC sync with {$url}:{$port} - Code " . $resp->faultCode() . ": " . $resp->faultString();
 		log_error($error);
 		file_notice("sync_settings", $error, "bind Settings Sync", "");
 	} else {
@@ -851,17 +905,17 @@ function bind_do_xmlrpc_sync($sync_to_ip, $username, $password, $synctimeout,$ma
 	$cli->setCredentials($username, $password);
 	$resp = $cli->send($msg, $synctimeout);
 	if(!$resp) {
-		$error = "A communications error occurred while attempting bind XMLRPC sync with {$url}:{$port} (pfsense.exec_php).";
+		$error = "A communications error occurred while attempting BIND XMLRPC sync with {$url}:{$port} (pfsense.exec_php).";
 		log_error($error);
 		file_notice("sync_settings", $error, "Bind Settings Sync", "");
 	} elseif($resp->faultCode()) {
 		$cli->setDebug(1);
 		$resp = $cli->send($msg, $synctimeout);
-		$error = "[Bind] An error code was received while attempting bind XMLRPC sync with {$url}:{$port} - Code " . $resp->faultCode() . ": " . $resp->faultString();
+		$error = "[Bind] An error code was received while attempting BIND XMLRPC sync with {$url}:{$port} - Code " . $resp->faultCode() . ": " . $resp->faultString();
 		log_error($error);
 		file_notice("sync_settings", $error, "bind Settings Sync", "");
 	} else {
-		log_error("Bind XMLRPC reload data success with {$url}:{$port} (pfsense.exec_php).");
+		log_error("BIND XMLRPC reload data success with {$url}:{$port} (pfsense.exec_php).");
 	}
 	
 }

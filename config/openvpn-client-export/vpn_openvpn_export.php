@@ -34,6 +34,8 @@ require("globals.inc");
 require("guiconfig.inc");
 require("openvpn-client-export.inc");
 
+global $current_openvpn_version, $current_openvpn_version_rev;
+
 $pgtitle = array("OpenVPN", "Client Export Utility");
 
 if (!is_array($config['openvpn']['openvpn-server']))
@@ -131,14 +133,19 @@ if (!empty($act)) {
 	else
 		$nokeys = false;
 
-	if (empty($_GET['useaddr'])) {
+	$useaddr = '';
+	if (isset($_GET['useaddr']) && !empty($_GET['useaddr']))
+		$useaddr = trim($_GET['useaddr']);
+
+	if (!(is_ipaddr($useaddr) || is_hostname($useaddr) ||
+	    in_array($useaddr, array("serveraddr", "servermagic", "servermagichost", "serverhostname"))))
 		$input_errors[] = "You need to specify an IP or hostname.";
-	} else
-		$useaddr = $_GET['useaddr'];
+
 	$advancedoptions = $_GET['advancedoptions'];
 	$openvpnmanager = $_GET['openvpnmanager'];
 
-	$quoteservercn = $_GET['quoteservercn'];
+	$verifyservercn = $_GET['verifyservercn'];
+	$randomlocalport = $_GET['randomlocalport'];
 	$usetoken = $_GET['usetoken'];
 	if ($usetoken && (substr($act, 0, 10) == "confinline"))
 		$input_errors[] = "You cannot use Microsoft Certificate Storage with an Inline configuration.";
@@ -213,17 +220,17 @@ if (!empty($act)) {
 				$exp_name = urlencode($exp_name."-config.ovpn");
 				$expformat = "baseconf";
 		}
-		$exp_path = openvpn_client_export_config($srvid, $usrid, $crtid, $useaddr, $quoteservercn, $usetoken, $nokeys, $proxy, $expformat, $password, false, false, $openvpnmanager, $advancedoptions);
+		$exp_path = openvpn_client_export_config($srvid, $usrid, $crtid, $useaddr, $verifyservercn, $randomlocalport, $usetoken, $nokeys, $proxy, $expformat, $password, false, false, $openvpnmanager, $advancedoptions);
 	}
 
 	if($act == "visc") {
 		$exp_name = urlencode($exp_name."-Viscosity.visc.zip");
-		$exp_path = viscosity_openvpn_client_config_exporter($srvid, $usrid, $crtid, $useaddr, $quoteservercn, $usetoken, $password, $proxy, $openvpnmanager, $advancedoptions);
+		$exp_path = viscosity_openvpn_client_config_exporter($srvid, $usrid, $crtid, $useaddr, $verifyservercn, $randomlocalport, $usetoken, $password, $proxy, $openvpnmanager, $advancedoptions);
 	}
 
 	if(substr($act, 0, 4) == "inst") {
 		$exp_name = urlencode($exp_name."-install.exe");
-		$exp_path = openvpn_client_export_installer($srvid, $usrid, $crtid, $useaddr, $quoteservercn, $usetoken, $password, $proxy, $openvpnmanager, $advancedoptions, substr($act, 5));
+		$exp_path = openvpn_client_export_installer($srvid, $usrid, $crtid, $useaddr, $verifyservercn, $randomlocalport, $usetoken, $password, $proxy, $openvpnmanager, $advancedoptions, substr($act, 5));
 	}
 
 	if (!$exp_path) {
@@ -304,9 +311,12 @@ function download_begin(act, i, j) {
 
 	advancedoptions = document.getElementById("advancedoptions").value;
 
-	var quoteservercn = 0;
-	if (document.getElementById("quoteservercn").checked)
-		quoteservercn = 1;
+	var verifyservercn;
+	verifyservercn = document.getElementById("verifyservercn").value;
+
+	var randomlocalport = 0;
+	if (document.getElementById("randomlocalport").checked)
+		randomlocalport = 1;
 	var usetoken = 0;
 	if (document.getElementById("usetoken").checked)
 		usetoken = 1;
@@ -354,7 +364,7 @@ function download_begin(act, i, j) {
 		var proxyconf = document.getElementById("proxyconf").value;
 		if (useproxypass) {
 			if (!proxyuser) {
-				alert("Please fill the proxy username and passowrd.");
+				alert("Please fill the proxy username and password.");
 				return;
 			}
 			if (!proxypass || !proxyconf) {
@@ -380,7 +390,8 @@ function download_begin(act, i, j) {
 		dlurl += "&crtid=" + escape(certs[j][0]);
 	}
 	dlurl += "&useaddr=" + escape(useaddr);
-	dlurl += "&quoteservercn=" + escape(quoteservercn);
+	dlurl += "&verifyservercn=" + escape(verifyservercn);
+	dlurl += "&randomlocalport=" + escape(randomlocalport);
 	dlurl += "&openvpnmanager=" + escape(openvpnmanager);
 	dlurl += "&usetoken=" + escape(usetoken);
 	if (usepass)
@@ -432,13 +443,15 @@ function server_changed() {
 		cell2.innerHTML += "<a href='javascript:download_begin(\"confinlineios\"," + i + ", -1)'>OpenVPN Connect (iOS/Android)<\/a>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
 		cell2.innerHTML += "<a href='javascript:download_begin(\"confinline\"," + i + ", -1)'>Others<\/a>";
-		cell2.innerHTML += "<br\/>- Windows Installers:<br\/>";
+		cell2.innerHTML += "<br\/>- Windows Installers (<?php echo $current_openvpn_version . '-Ix' . $current_openvpn_version_rev;?>):<br\/>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
-		cell2.innerHTML += "<a href='javascript:download_begin(\"inst\"," + i + ", -1)'>2.2<\/a>";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x86-xp\"," + i + ", -1)'>x86-xp<\/a>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
-		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-2.3-x86\"," + i + ", -1)'>2.3-x86<\/a>";
-//		cell2.innerHTML += "&nbsp;&nbsp; ";
-//		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-2.3-x64\"," + i + ", -1)'>2.3-x64<\/a>";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x64-xp\"," + i + ", -1)'>x64-xp<\/a>";
+		cell2.innerHTML += "&nbsp;&nbsp; ";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x86-win6\"," + i + ", -1)'>x86-win6<\/a>";
+		cell2.innerHTML += "&nbsp;&nbsp; ";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x64-win6\"," + i + ", -1)'>x64-win6<\/a>";
 		cell2.innerHTML += "<br\/>- Mac OSX:<br\/>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
 		cell2.innerHTML += "<a href='javascript:download_begin(\"visc\"," + i + ", -1)'>Viscosity Bundle<\/a>";
@@ -469,13 +482,15 @@ function server_changed() {
 		cell2.innerHTML += "<a href='javascript:download_begin(\"confinlineios\", -1," + j + ")'>OpenVPN Connect (iOS/Android)<\/a>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
 		cell2.innerHTML += "<a href='javascript:download_begin(\"confinline\", -1," + j + ")'>Others<\/a>";
-		cell2.innerHTML += "<br\/>- Windows Installers:<br\/>";
+		cell2.innerHTML += "<br\/>- Windows Installers (<?php echo $current_openvpn_version . '-Ix' . $current_openvpn_version_rev;?>):<br\/>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
-		cell2.innerHTML += "<a href='javascript:download_begin(\"inst\", -1," + j + ")'>2.2<\/a>";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x86-xp\", -1," + j + ")'>x86-xp<\/a>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
-		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-2.3-x86\", -1," + j + ")'>2.3-x86<\/a>";
-//		cell2.innerHTML += "&nbsp;&nbsp; ";
-//		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-2.3-x64\", -1," + j + ")'>2.3-x64<\/a>";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x64-xp\", -1," + j + ")'>x64-xp<\/a>";
+		cell2.innerHTML += "&nbsp;&nbsp; ";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x86-win6\", -1," + j + ")'>x86-win6<\/a>";
+		cell2.innerHTML += "&nbsp;&nbsp; ";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x64-win6\", -1," + j + ")'>x64-win6<\/a>";
 		cell2.innerHTML += "<br\/>- Mac OSX:<br\/>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
 		cell2.innerHTML += "<a href='javascript:download_begin(\"visc\", -1," + j + ")'>Viscosity Bundle<\/a>";
@@ -513,13 +528,15 @@ function server_changed() {
 		cell2.innerHTML += "<a href='javascript:download_begin(\"confinlineios\"," + i + ")'>OpenVPN Connect (iOS/Android)<\/a>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
 		cell2.innerHTML += "<a href='javascript:download_begin(\"confinline\"," + i + ")'>Others<\/a>";
-		cell2.innerHTML += "<br\/>- Windows Installers:<br\/>";
+		cell2.innerHTML += "<br\/>- Windows Installers (<?php echo $current_openvpn_version . '-Ix' . $current_openvpn_version_rev;?>):<br\/>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
-		cell2.innerHTML += "<a href='javascript:download_begin(\"inst\"," + i + ")'>2.2<\/a>";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x86-xp\"," + i + ")'>x86-xp<\/a>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
-		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-2.3-x86\"," + i + ")'>2.3-x86<\/a>";
-//		cell2.innerHTML += "&nbsp;&nbsp; ";
-//		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-2.3-x64\"," + i + ")'>2.3-x64<\/a>";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x64-xp\"," + i + ")'>x64-xp<\/a>";
+		cell2.innerHTML += "&nbsp;&nbsp; ";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x86-win6\"," + i + ")'>x86-win6<\/a>";
+		cell2.innerHTML += "&nbsp;&nbsp; ";
+		cell2.innerHTML += "<a href='javascript:download_begin(\"inst-x64-win6\"," + i + ")'>x64-win6<\/a>";
 		cell2.innerHTML += "<br\/>- Mac OSX:<br\/>";
 		cell2.innerHTML += "&nbsp;&nbsp; ";
 		cell2.innerHTML += "<a href='javascript:download_begin(\"visc\"," + i + ")'>Viscosity Bundle<\/a>";
@@ -584,7 +601,7 @@ function useproxy_changed(obj) {
 						<td width="78%" class="vtable">
 							<select name="server" id="server" class="formselect" onchange="server_changed()">
 								<?php foreach($ras_server as & $server): ?>
-								<option value="<?=$server['sindex'];?>"><?=$server['name'];?></option>
+								<option value="<?=$server['index'];?>"><?=$server['name'];?></option>
 								<?php endforeach; ?>
 							</select>
 						</td>
@@ -625,21 +642,48 @@ function useproxy_changed(obj) {
 						</td>
 					</tr>
 					<tr>
-						<td width="22%" valign="top" class="vncell">Quote Server CN</td>
+						<td width="22%" valign="top" class="vncell">Verify Server CN</td>
 						<td width="78%" class="vtable">
-							<table border="0" cellpadding="2" cellspacing="0" summary="quote server cn">
+							<table border="0" cellpadding="2" cellspacing="0" summary="verify server cn">
 								<tr>
 									<td>
-										<input name="quoteservercn" id="quoteservercn" type="checkbox" value="yes" />
-									</td>
-									<td>
+										<select name="verifyservercn" id="verifyservercn" class="formselect">
+											<option value="auto">Automatic - Use verify-x509-name (OpenVPN 2.3+) where possible</option>
+											<option value="tls-remote">Use tls-remote (Deprecated, use only on old clients &lt;= OpenVPN 2.2.x)</option>
+											<option value="tls-remote-quote">Use tls-remote and quote the server CN</option>
+											<option value="none">Do not verify the server CN</option>
+										</select>
+										<br/>
 										<span class="vexpl">
-											 Enclose the server CN in quotes. Can help if your server CN contains spaces and certain clients cannot parse the server CN. Some clients have problems parsing the CN with quotes. Use only as needed.
+											Optionally verify the server certificate Common Name (CN) when the client connects. Current clients, including the most recent versions of Windows, Viscosity, Tunnelblick, OpenVPN on iOS and Android and so on should all work at the default automatic setting.
+											<br/><br/>Only use tls-remote if you must use an older client that you cannot control. The option has been deprecated by OpenVPN and will be removed in the next major version.
+											<br/><br/>With tls-remote the server CN may optionally be enclosed in quotes. This can help if the server CN contains spaces and certain clients cannot parse the server CN. Some clients have problems parsing the CN with quotes. Use only as needed.
 										</span>
 									</td>
 								</tr>
 							</table>
 						</td>
+					</tr>
+					<tr>
+						<td width="22%" valign="top" class="vncell">Use Random Local Port</td>
+						<td width="78%" class="vtable">
+							 <table border="0" cellpadding="2" cellspacing="0" summary="random local port">
+								<tr>
+									<td>
+										<input name="randomlocalport" id="randomlocalport" type="checkbox" value="yes" checked="CHECKED" />
+									</td>
+									<td>
+										<span class="vexpl">
+											Use a random local source port (lport) for traffic from the client. Without this set, two clients may not run concurrently.
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="2">
+										<span class="vexpl"><br/>NOTE: Not supported on older clients. Automatically disabled for Yealink and Snom configurations.</span>
+									</td>
+								</tr>
+							</table>
 					</tr>
 					<tr>
 						<td width="22%" valign="top" class="vncell">Certificate Export Options</td>
@@ -809,6 +853,11 @@ function useproxy_changed(obj) {
 										</span>
 									</td>
 								</tr>
+								<tr>
+									<td colspan="2">
+										<span class="vexpl"><br/>NOTE: This is not currently compatible with the 64-bit OpenVPN installer. It will work with the 32-bit installer on a 64-bit system.</span>
+									</td>
+								</tr>
 							</table>
 						</td>
 					</tr>
@@ -836,7 +885,11 @@ function useproxy_changed(obj) {
 				</table>
 				<table width="100%" border="0" cellpadding="0" cellspacing="5" summary="note">
 					<tr>
-						<td align="right" valign="top" width="5%"><?= gettext("NOTE:") ?></td>
+						<td align="right" valign="top" width="5%"><?= gettext("NOTES:") ?></td>
+						<td><?= gettext("The &quot;XP&quot; Windows installers work on Windows XP and later versions. The &quot;win6&quot; Windows installers include a new tap-windows6 driver that works only on Windows Vista and later.") ?></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
 						<td><?= gettext("If you expect to see a certain client in the list but it is not there, it is usually due to a CA mismatch between the OpenVPN server instance and the client certificates found in the User Manager.") ?></td>
 					</tr>
 					<tr>

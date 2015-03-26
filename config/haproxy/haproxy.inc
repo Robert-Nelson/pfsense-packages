@@ -85,7 +85,7 @@ function haproxy_custom_php_install_command() {
 . /etc/rc.subr
 
 name="haproxy"
-rcvar=`set_rcvar`
+rcvar="\${name}_enable"
 command="/usr/local/bin/haproxy"
 haproxy_enable=\${haproxy-"YES"}
 
@@ -627,7 +627,7 @@ function haproxy_writeconf() {
 
 	$freebsd_version = substr(trim(`uname -r`), 0, 1);
 	if(!file_exists("/usr/bin/limits")) {
-		exec("fetch -q -o /usr/bin/limits http://files.pfsense.org/extras/{$freebsd_version}/limits");
+		exec("fetch -q -o /usr/bin/limits https://files.pfsense.org/extras/{$freebsd_version}/limits");
 		exec("chmod a+rx /usr/bin/limits");
 	}
 }

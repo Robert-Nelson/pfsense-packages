@@ -70,7 +70,7 @@ class squidstat{
         $this->squidhost = '127.0.0.1';
         $this->squidport = '3128';
 
-        $This->group_by        = 'host';
+        $this->group_by        = 'host';
         $this->resolveip       = true;
         $this->hosts_file      = '';
 	    $this->autorefresh     = 0;
@@ -179,7 +179,8 @@ class squidstat{
 		}
 		fclose($this->fp);
 
-		if ($raw[0]!="HTTP/1.0 200 OK") {			$this->errorMsg(1, "Cannot get data. Server answered: $raw[0]");
+		if (!preg_match("/^HTTP.* 200 OK$/", $raw[0])) {
+			$this->errorMsg(1, "Cannot get data. Server answered: $raw[0]");
 			return false;
 		}
 
