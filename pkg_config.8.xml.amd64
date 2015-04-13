@@ -1919,18 +1919,5 @@
 		<depends_on_package_base_url>https://files.pfsense.org/packages/amd64/8/All/</depends_on_package_base_url>
 		<depends_on_package_pbi>suricata-2.0.4-amd64.pbi</depends_on_package_pbi>
 	</package>
-	<package>
-		<name>EmailRelay</name>
-		<maintainer>robertn@the-nelsons.org</maintainer>
-		<descr>Simple email proxy</descr>
-		<website>http://emailrelay.sourceforge.net</website>
-		<pkginfolink>http://doc.pfsense.org/index.php/EmailRelay_package</pkginfolink>
-		<category>Services</category>
-		<version>0.9.1</version>
-		<status>BETA</status>
-		<required_version>2.1</required_version>
-		<config_file>http://pfsense-devel.nelson-morfa.local/packages/config/emailrelay/emailrelay.xml</config_file>
-		<configurationfile>emailrelay.xml</configurationfile>
-	</package>
 </packages>
 </pfsensepkgs>
