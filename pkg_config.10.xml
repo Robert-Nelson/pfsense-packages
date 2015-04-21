@@ -4,7 +4,7 @@
 <copy_packages_to_host_ssh_port>22</copy_packages_to_host_ssh_port>
 <copy_packages_to_host_ssh>packagecopy@files.pfsense.org</copy_packages_to_host_ssh>
 <copy_packages_to_folder_ssh>/usr/local/www/files/packages/10/All/</copy_packages_to_folder_ssh>
-<depends_on_package_base_url>https://files.pfsense.org/packages/10/All/</depends_on_package_base_url>
+<depends_on_package_base_url>http://pfsense-packages.nelson-morfa.org/files/packages/10/All/</depends_on_package_base_url>
 <packages>
 <!--
 	<package>
@@ -1507,6 +1507,62 @@
 		<config_file>https://packages.pfsense.org/packages/config/ftpproxy/ftpproxy.xml</config_file>
 		<required_version>2.2</required_version>
 		<configurationfile>ftpproxy.xml</configurationfile>
+	</package>
+	<package>
+		<name>dshield-sensor</name>
+		<pkginfolink>https://forum.pfsense.org/</pkginfolink>
+		<descr><![CDATA[Set of scripts which automatically uploads firewall logs to DShield.<br/>
+			This package periodically processes the filter.log and submits the results in an
+			email to dshield.org.  This information is then used to track attacks and identify
+			compromised hosts.<br/>
+			]]></descr>
+		<website/>
+		<category>Network Management</category>
+		<version>2015-04-03 pkg 0.9.0</version>
+		<status>Beta</status>
+		<required_version>2.2</required_version>
+		<config_file>http://pfsense-packages.nelson-morfa.org/packages/config/dshield-sensor/dshield-sensor.xml</config_file>
+		<maintainer>robertn@the-nelsons.org</maintainer>
+		<configurationfile>dshield-sensor.xml</configurationfile>
+		<build_pbi>
+			<ports_before>lang/perl5.18</ports_before>
+			<port>net-mgmt/dshield-sensor</port>
+			<ports_after>net-mgmt/p5-Net-IP</ports_after>
+		</build_pbi>
+		<depends_on_package_pbi>dshield-sensor-2015.04.03-##ARCH##.pbi</depends_on_package_pbi>
+	</package>
+	<package>
+		<name>E-MailRelay</name>
+		<pkginfolink></pkginfolink>
+		<descr><![CDATA[E-MailRelay is a simple SMTP proxy and store-and-forward message transfer agent
+			(MTA). When running as a proxy all e-mail messages can be passed through a
+			user-defined program, such as a spam filter, which can drop, re-address or edit
+			messages as they pass through. When running as a store-and-forward MTA incoming
+			messages are stored in a local spool directory, and then forwarded to the next
+			SMTP server on request.<br/><br/>
+
+			E-MailRelay can also run as a POP3 server. Messages received over SMTP can be
+			automatically dropped into several independent POP3 mailboxes.<br/><br/>
+			Note: This package only supports running E-MailRelay as a proxy forwarding e-mail
+			sent to port 25 to the configured host for further processing.]]></descr>
+		<website>http://emailrelay.sourceforge.net</website>
+		<category>Services</category>
+		<version>1.9 pkg 1.9.0</version>
+		<status>Beta</status>
+		<required_version>2.2</required_version>
+		<config_file>http://pfsense-packages.nelson-morfa.org/packages/config/emailrelay/emailrelay.xml</config_file>
+		<maintainer>robertn@the-nelsons.org</maintainer>
+		<configurationfile>emailrelay.xml</configurationfile>
+		<logging>
+			<facilityname>emailrelay</facilityname>
+			<logfilename>emailrelay.log</logfilename>
+		</logging>
+		<after_install_info>Please configure the Service: E-MailRelay.</after_install_info>
+		<build_pbi>
+			<port>mail/emailrelay</port>
+		</build_pbi>
+		<build_options>OPTIONS_UNSET_FORCE=GUI DOXYGEN DOCS</build_options>
+		<depends_on_package_pbi>emailrelay-1.9-##ARCH##.pbi</depends_on_package_pbi>
 	</package>
 </packages>
 </pfsensepkgs>
