@@ -1507,7 +1507,7 @@
 	</package>
 	<package>
 		<name>dshield-sensor</name>
-		<pkginfolink>https://forum.pfsense.org/</pkginfolink>
+		<pkginfolink></pkginfolink>
 		<descr><![CDATA[Set of scripts which automatically uploads firewall logs to DShield.<br/>
 			This package periodically processes the filter.log and submits the results in an
 			email to dshield.org.  This information is then used to track attacks and identify
@@ -1521,6 +1521,7 @@
 		<config_file>http://pfsense-packages.nelson-morfa.org/packages/config/dshield-sensor/dshield-sensor.xml</config_file>
 		<maintainer>robertn@the-nelsons.org</maintainer>
 		<configurationfile>dshield-sensor.xml</configurationfile>
+		<after_install_info>Please configure the SMTP E-Mail settings in System: Advanced: Notifications.  Then configure Services: DShield Sensor.</after_install_info>
 		<build_pbi>
 			<ports_before>lang/perl5.18</ports_before>
 			<port>net-mgmt/dshield-sensor</port>
