@@ -1,8 +1,8 @@
-<?php   
-/* $Id$ */ 
-/*      
+<?php
+/* $Id$ */
+/*
 /* ========================================================================== */
-/*      
+/*
     emailrelay.inc
     Copyright (C) 2015 Robert Nelson
     All rights reserved.
@@ -92,7 +92,7 @@ function emailrelay_resync_config_command()
 	} else {
 		$recipients = '';
 	}
-	
+
 	if (file_put_contents($valid_file, $recipients) === False) {
 		emailrelay_warn('Couldn\'t write '.$valid_file);
 		$enabled = False;
@@ -118,12 +118,12 @@ if [ -f /var/run/emailrelay.pid ]; then
 fi
 EOD;
 	write_rcfile(array('file' => 'emailrelay', 'start' => $start, 'stop' => $stop));
-	
+
 	copy('/usr/local/pkg/emailrelay/emailrelay-verify', '/usr/pbi/emailrelay-'.php_uname("m").'/local/libexec/emailrelay/emailrelay-verify');
 	chmod('/usr/pbi/emailrelay-'.php_uname("m").'/local/libexec/emailrelay/emailrelay-verify', 0555);
 
 	stop_service('emailrelay');
-	
+
 	if (isset($config['installedpackages']['emailrelay']['config'][0]['enable'])) {
 		$config['installedpackages']['emailrelay']['config'][0]['enable'] = '';
 	}

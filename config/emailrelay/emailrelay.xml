@@ -2,7 +2,7 @@
 <packagegui>
   <name>E-MailRelay</name>
   <version>1.9 pkg 0.9.0</version>
-  <title>E-MailRelay</title>
+  <title>E-MailRelay: Settings</title>
   <include_file>/usr/local/pkg/emailrelay.inc</include_file>
   <configpath>installedpackages->$packagename->config</configpath>
   <menu>
